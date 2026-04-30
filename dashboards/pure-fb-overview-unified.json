@@ -1,0 +1,1010 @@
+{
+  "title": "Pure Storage FlashBlade - Overview (Unified)",
+  "uid": "fb-overview-unified",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "tags": [
+    "pure",
+    "flashblade",
+    "overview",
+    "unified",
+    "otel"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "fb",
+        "label": "FlashBlade",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "query_result(label_replace(purefb_info, \"fb\", \"$1\", \"instance\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_health[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "regex": ".*fb=\"([^\"]+)\".*"
+      },
+      {
+        "name": "protocol",
+        "label": "Protocol",
+        "type": "custom",
+        "query": "NFS,SMB,S3,HTTP,all",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "TopItems",
+        "label": "Top N",
+        "type": "custom",
+        "query": "5,10,15,25,50",
+        "current": {
+          "text": "10",
+          "value": "10"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## FlashBlade Overview (Unified)\n\nCross-path view of every FB sending telemetry \u2014 **OpenMetrics proxy** (`purefb_*`) and **native OTel push** (`flashblade_storage_device_*`). Panels query both and merge where schemas align; panels that depend on one path only are labeled in the title. See `GAPS.md` for metrics that exist on one path but not the other."
+      }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "FlashBlade Array System Detail",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "refId": "INFO",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb, os, version) (label_replace(label_replace(label_replace(label_replace(purefb_info{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"os\", \"$1\", \"os\", \"(.+)\"), \"version\", \"$1\", \"version\", \"(.+)\"), \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb, os, version) (label_replace(label_replace(label_replace(last_over_time(flashblade_storage_device_info{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"os\", \"$1\", \"device_os\", \"(.+)\"), \"version\", \"$1\", \"device_vers\", \"(.+)\"))"
+        },
+        {
+          "refId": "USED",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb) (label_replace(purefb_array_space_bytes{space=\"total_physical\", instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{space_type=\"total_physical\", exported_storage_type=\"all\", device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))"
+        },
+        {
+          "refId": "CAP",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb) (label_replace(purefb_array_space_bytes{space=\"capacity\", instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{space_type=\"capacity\", exported_storage_type=\"all\", device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))"
+        },
+        {
+          "refId": "DRR",
+          "format": "table",
+          "instant": true,
+          "expr": "avg by (fb) (label_replace(purefb_array_space_data_reduction_ratio{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or avg by (fb) (label_replace(last_over_time(flashblade_storage_device_space_reduction{exported_storage_type=\"all\", device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))"
+        },
+        {
+          "refId": "ALERTS",
+          "format": "table",
+          "instant": true,
+          "expr": "count by (fb) (label_replace(purefb_alerts_open{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or count by (fb) (label_replace(last_over_time(flashblade_storage_device_alerts{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))"
+        },
+        {
+          "refId": "UNHEALTHY",
+          "format": "table",
+          "instant": true,
+          "expr": "count by (fb) (label_replace(purefb_hardware_health{instance=~\"$fb\"} != 1, \"fb\", \"$1\", \"instance\", \"(.+)\")) or count by (fb) (label_replace(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\"}[10m]) != 5, \"fb\", \"$1\", \"device_name\", \"(.+)\"))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "fb": 0,
+              "os": 1,
+              "version": 2,
+              "Value #USED": 3,
+              "Value #CAP": 4,
+              "Value #DRR": 5,
+              "Value #ALERTS": 6,
+              "Value #UNHEALTHY": 7
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "os": "OS",
+              "version": "Version",
+              "Value #USED": "Used",
+              "Value #CAP": "Capacity",
+              "Value #DRR": "DRR",
+              "Value #ALERTS": "Alerts",
+              "Value #UNHEALTHY": "Unhealthy components"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Capacity"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DRR"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Alerts"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 1
+                    },
+                    {
+                      "color": "red",
+                      "value": 5
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Unhealthy components"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "Open Alerts",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(purefb_alerts_open{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")"
+        },
+        {
+          "refId": "B",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(last_over_time(flashblade_storage_device_alerts{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "namespace": true,
+              "storage_type": true,
+              "source": true,
+              "env": true,
+              "instance": true,
+              "device_name": true,
+              "device_id": true,
+              "entity_id": true,
+              "entity_owner_id": true,
+              "fleet_id": true,
+              "fleet_name": true,
+              "realm_id": true,
+              "realm_name": true,
+              "collector_name": true,
+              "otel_scope_name": true,
+              "otel_scope_version": true,
+              "resource_type": true,
+              "device_os": true,
+              "device_type": true,
+              "device_vers": true,
+              "created": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "severity": "Severity",
+              "summary": "Summary",
+              "component_name": "Component",
+              "component_type": "Type",
+              "kburl": "KB URL",
+              "action": "Action"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": {
+                        "color": "red"
+                      },
+                      "warning": {
+                        "color": "yellow"
+                      },
+                      "info": {
+                        "color": "blue"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "type": "piechart",
+      "title": "Space by Type (sum across selected FBs)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (space) (purefb_array_space_bytes{space=~\"unique|snapshots|shared|virtual\", instance=~\"$fb\"})",
+          "legendFormat": "OM \u00b7 {{space}}",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (space_type) (last_over_time(flashblade_storage_device_space_bytes{space_type=~\"unique|snapshots|shared|virtual\", exported_storage_type=\"all\", device_name=~\"$fb\"}[10m]))",
+          "legendFormat": "OTel \u00b7 {{space_type}}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "piechart",
+      "title": "IOPS by IO Type",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 19
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (dimension) (avg_over_time(purefb_array_performance_throughput_iops{instance=~\"$fb\", protocol=\"all\"}[$__range]))",
+          "legendFormat": "OM \u00b7 {{dimension}}",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (op) (avg_over_time(flashblade_storage_device_iops{device_name=~\"$fb\", proto=\"all\", op=~\"read|write\"}[$__range]))",
+          "legendFormat": "OTel \u00b7 {{op}}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value"
+          ]
+        },
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "piechart",
+      "title": "IOPS by Protocol",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 19
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (protocol) (avg_over_time(purefb_array_performance_throughput_iops{instance=~\"$fb\", protocol=~\"NFS|SMB|S3|HTTP\"}[$__range]))",
+          "legendFormat": "OM \u00b7 {{protocol}}",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (proto) (avg_over_time(flashblade_storage_device_iops{device_name=~\"$fb\", proto=~\"nfs|smb|s3|http\", op=~\"read|write\"}[$__range]))",
+          "legendFormat": "OTel \u00b7 {{proto}}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value"
+          ]
+        },
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "piechart",
+      "title": "Space by Exported Storage Type (OTel)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 19
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (exported_storage_type) (last_over_time(flashblade_storage_device_space_bytes{space_type=\"total_physical\", exported_storage_type=~\"file|object\", device_name=~\"$fb\"}[10m]))",
+          "legendFormat": "{{exported_storage_type}}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Array Performance Timeseries",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "collapsed": false
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Read Throughput by Protocol",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, protocol) (purefb_array_performance_bandwidth_bytes{instance=~\"$fb\", protocol=~\"$protocol\", dimension=\"read_bytes_per_sec\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{protocol}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, proto) (flashblade_storage_device_bw_bps{device_name=~\"$fb\", proto=~\"$protocol\", op=\"read\"})",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{proto}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Write Throughput by Protocol",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, protocol) (purefb_array_performance_bandwidth_bytes{instance=~\"$fb\", protocol=~\"$protocol\", dimension=\"write_bytes_per_sec\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{protocol}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, proto) (flashblade_storage_device_bw_bps{device_name=~\"$fb\", proto=~\"$protocol\", op=\"write\"})",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{proto}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Array Latency by FB & Protocol",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by (instance, protocol) (purefb_array_performance_latency_usec{instance=~\"$fb\", protocol=~\"$protocol\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{protocol}}"
+        },
+        {
+          "refId": "B",
+          "expr": "avg by (device_name, proto) (flashblade_storage_device_latency_us{device_name=~\"$fb\", proto=~\"$protocol\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{proto}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Array IOPS by FB & Protocol",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, protocol) (purefb_array_performance_throughput_iops{instance=~\"$fb\", protocol=~\"$protocol\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{protocol}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, proto) (flashblade_storage_device_iops{device_name=~\"$fb\", proto=~\"$protocol\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{proto}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops"
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Top $TopItems Filesystems",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Top $TopItems Filesystem Throughput by IO Type",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk($TopItems, sum by (instance, name, dimension) (purefb_file_systems_performance_bandwidth_bytes{instance=~\"$fb\"}))",
+          "legendFormat": "OM \u00b7 {{name}} @ {{instance}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "topk($TopItems, sum by (device_name, entity_name, op) (flashblade_storage_device_fs_bw_bps{device_name=~\"$fb\", op=~\"read|write\"}))",
+          "legendFormat": "OTel \u00b7 {{entity_name}} @ {{device_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Top $TopItems Filesystem Latency by IO Type",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk($TopItems, avg by (instance, name, dimension) (purefb_file_systems_performance_latency_usec{instance=~\"$fb\"}))",
+          "legendFormat": "OM \u00b7 {{name}} @ {{instance}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "topk($TopItems, avg by (device_name, entity_name, op) (flashblade_storage_device_fs_latency_us{device_name=~\"$fb\", op=~\"read|write\"}))",
+          "legendFormat": "OTel \u00b7 {{entity_name}} @ {{device_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Top $TopItems Buckets",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      },
+      "collapsed": false
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Top $TopItems Bucket Throughput by IO Type",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 53
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk($TopItems, sum by (instance, name, dimension) (purefb_buckets_performance_bandwidth_bytes{instance=~\"$fb\"}))",
+          "legendFormat": "OM \u00b7 {{name}} @ {{instance}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "topk($TopItems, sum by (device_name, entity_name, op) (flashblade_storage_device_bucket_bw_bps{device_name=~\"$fb\", op=~\"read|write\"}))",
+          "legendFormat": "OTel \u00b7 {{entity_name}} @ {{device_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Top $TopItems Bucket Latency by IO Type",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk($TopItems, avg by (instance, name, dimension) (purefb_buckets_performance_latency_usec{instance=~\"$fb\"}))",
+          "legendFormat": "OM \u00b7 {{name}} @ {{instance}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "topk($TopItems, avg by (device_name, entity_name, op) (flashblade_storage_device_bucket_latency_us{device_name=~\"$fb\", op=~\"read|write\"}))",
+          "legendFormat": "OTel \u00b7 {{entity_name}} @ {{device_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        }
+      }
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Capacity Over Time",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "collapsed": false
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "Capacity Utilization by Space Type \u2014 OpenMetrics",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 62
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, space) (purefb_array_space_bytes{instance=~\"$fb\", space=~\"unique|snapshots|shared|virtual|total_physical\"})",
+          "legendFormat": "{{instance}} / {{space}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "Capacity Utilization by Space Type \u2014 OTel",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 62
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (device_name, space_type) (last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=~\"unique|snapshots|shared|virtual|total_physical\"}[10m]))",
+          "legendFormat": "{{device_name}} / {{space_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ]
+}

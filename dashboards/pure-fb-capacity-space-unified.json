@@ -1,0 +1,898 @@
+{
+  "title": "Pure Storage FlashBlade - Capacity & Space (Unified)",
+  "uid": "fb-capacity-space-unified",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "tags": [
+    "pure",
+    "flashblade",
+    "capacity",
+    "space",
+    "unified",
+    "otel"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "fb",
+        "label": "FlashBlade",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "query_result(label_replace(purefb_info, \"fb\", \"$1\", \"instance\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_health[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "regex": ".*fb=\"([^\"]+)\".*"
+      },
+      {
+        "name": "warn_pct",
+        "label": "Warn threshold %",
+        "type": "custom",
+        "query": "60,70,75,80,85,90",
+        "current": {
+          "text": "80",
+          "value": "80"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Capacity & Space \u2014 Unified\n\nHeadline stats are shown per FB (one tile per array). Filesystem and bucket detail tables below merge data from both paths (OpenMetrics proxy and native OTel push). Set the **Warn threshold %** variable to color the capacity gauge; default 80%."
+      }
+    },
+    {
+      "id": 10,
+      "type": "gauge",
+      "title": "Array Capacity Used %",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "100 * (sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"total_physical\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"total_physical\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))) / (sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"capacity\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"capacity\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Free Space",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 8,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "(sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"capacity\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"capacity\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))) - (sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"total_physical\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"total_physical\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Data Reduction Ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 12,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "avg by (fb) (label_replace(purefb_array_space_data_reduction_ratio{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or avg by (fb) (label_replace(last_over_time(flashblade_storage_device_space_reduction{device_name=~\"$fb\", exported_storage_type=\"all\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "textMode": "auto",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Free Usable (post-DRR)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 16,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "((sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"capacity\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"capacity\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))) - (sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"total_physical\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"total_physical\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")))) * (avg by (fb) (label_replace(purefb_array_space_data_reduction_ratio{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or avg by (fb) (label_replace(last_over_time(flashblade_storage_device_space_reduction{device_name=~\"$fb\", exported_storage_type=\"all\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "textMode": "auto",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Used (Physical)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 4,
+        "x": 20,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"total_physical\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"total_physical\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "textMode": "auto",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Capacity Over Time by Space Type \u2014 OpenMetrics",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, space) (purefb_array_space_bytes{instance=~\"$fb\", space=~\"unique|snapshots|shared|virtual|total_physical|capacity\"})",
+          "legendFormat": "{{instance}} / {{space}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 1
+          }
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Capacity Over Time by Space Type \u2014 OTel",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (device_name, space_type) (last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=~\"unique|snapshots|shared|virtual|total_physical|capacity\"}[10m]))",
+          "legendFormat": "{{device_name}} / {{space_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "lineWidth": 1
+          }
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "stat",
+      "title": "7-day Growth (Physical Used)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "(sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"total_physical\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"total_physical\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))) - (sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"total_physical\"} offset 7d, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"total_physical\"}[10m] offset 7d), \"fb\", \"$1\", \"device_name\", \"(.+)\")))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2
+        }
+      }
+    },
+    {
+      "id": 31,
+      "type": "stat",
+      "title": "Provisioned",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"virtual\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"virtual\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "textMode": "value_and_name",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      }
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "File Systems \u2014 capacity detail",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "collapsed": false
+    },
+    {
+      "id": 41,
+      "type": "table",
+      "title": "Filesystem Space Usage (top 50 by physical used)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "refId": "Used",
+          "format": "table",
+          "instant": true,
+          "expr": "topk(50, sum by (fb, fs) (label_replace(label_replace(purefb_file_systems_space_bytes{instance=~\"$fb\", space=\"total_physical\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"fs\", \"$1\", \"name\", \"(.+)\")) or sum by (fb, fs) (label_replace(label_replace(last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\", space_type=\"total_physical\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"fs\", \"$1\", \"entity_name\", \"(.+)\")))"
+        },
+        {
+          "refId": "Virtual",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb, fs) (label_replace(label_replace(purefb_file_systems_space_bytes{instance=~\"$fb\", space=\"virtual\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"fs\", \"$1\", \"name\", \"(.+)\")) or sum by (fb, fs) (label_replace(label_replace(last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\", space_type=\"virtual\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"fs\", \"$1\", \"entity_name\", \"(.+)\"))"
+        },
+        {
+          "refId": "Snap",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb, fs) (label_replace(label_replace(purefb_file_systems_space_bytes{instance=~\"$fb\", space=\"snapshots\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"fs\", \"$1\", \"name\", \"(.+)\")) or sum by (fb, fs) (label_replace(label_replace(last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\", space_type=\"snapshots\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"fs\", \"$1\", \"entity_name\", \"(.+)\"))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "fb": 0,
+              "fs": 1,
+              "Value #Used": 2,
+              "Value #Virtual": 3,
+              "Value #Snap": 4
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "fs": "Filesystem",
+              "Value #Used": "Physical",
+              "Value #Virtual": "Virtual",
+              "Value #Snap": "Snapshots"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "Physical",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Physical",
+            "Virtual",
+            "Snapshots"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Physical"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-BlPu"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Virtual"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Snapshots"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 42,
+      "type": "table",
+      "title": "Filesystem Data Reduction Ratio",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "targets": [
+        {
+          "refId": "DRR",
+          "format": "table",
+          "instant": true,
+          "expr": "avg by (fb, fs) (label_replace(label_replace(purefb_file_systems_space_data_reduction_ratio{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"fs\", \"$1\", \"name\", \"(.+)\")) or avg by (fb, fs) (label_replace(label_replace(last_over_time(flashblade_storage_device_fs_space_reduction{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"fs\", \"$1\", \"entity_name\", \"(.+)\"))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "fs": "Filesystem",
+              "Value": "DRR"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "DRR",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DRR"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-GrYlRd"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 50,
+      "type": "row",
+      "title": "Object store \u2014 capacity detail",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
+      "collapsed": false
+    },
+    {
+      "id": 51,
+      "type": "table",
+      "title": "Bucket Space Usage (top 50)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "targets": [
+        {
+          "refId": "Used",
+          "format": "table",
+          "instant": true,
+          "expr": "topk(50, sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (instance, account, name) (purefb_buckets_space_bytes{space=\"total_physical\", instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\"), \"account\", \"$1\", \"account\", \"(.+)\")) or sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_space_bytes{space_type=\"total_physical\", device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\"), \"account\", \"$1\", \"entity_owner\", \"(.+)\")))"
+        },
+        {
+          "refId": "Objects",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (instance, account, name) (purefb_buckets_object_count{instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\"), \"account\", \"$1\", \"account\", \"(.+)\")) or sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_obj_count{device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\"), \"account\", \"$1\", \"entity_owner\", \"(.+)\"))"
+        },
+        {
+          "refId": "DRR",
+          "format": "table",
+          "instant": true,
+          "expr": "avg by (fb, bucket, account) (label_replace(label_replace(label_replace(avg by (instance, account, name) (purefb_buckets_space_data_reduction_ratio{instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\"), \"account\", \"$1\", \"account\", \"(.+)\")) or avg by (fb, bucket, account) (label_replace(label_replace(label_replace(avg by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_space_reduction{device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\"), \"account\", \"$1\", \"entity_owner\", \"(.+)\"))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "fb": 0,
+              "account": 1,
+              "bucket": 2,
+              "Value #Used": 3,
+              "Value #Objects": 4,
+              "Value #DRR": 5
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "account": "Account",
+              "bucket": "Bucket",
+              "Value #Used": "Size (bytes)",
+              "Value #Objects": "Objects",
+              "Value #DRR": "DRR"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "Size (bytes)",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Size (bytes)",
+            "Objects"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size (bytes)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-BlPu"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Objects"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DRR"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ]
+}

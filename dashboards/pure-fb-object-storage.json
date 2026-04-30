@@ -1,0 +1,854 @@
+{
+  "title": "Pure Storage FlashBlade - Object Storage",
+  "uid": "fb-object-storage",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": [
+    "pure",
+    "flashblade",
+    "object-storage",
+    "s3",
+    "otel"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "fb",
+        "label": "FlashBlade",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "query_result(label_replace(purefb_array_performance_bandwidth_bytes, \"fb\", \"$1\", \"instance\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_health[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "regex": ".*fb=\"([^\"]+)\".*"
+      },
+      {
+        "name": "bucket",
+        "label": "Bucket",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "query_result(label_replace(purefb_buckets_object_count, \"bucket\", \"$1\", \"name\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_bucket_obj_count[10m]), \"bucket\", \"$1\", \"entity_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {},
+        "regex": ".*bucket=\"([^\"]+)\".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Size (all buckets)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(max by (instance, name) (purefb_buckets_space_bytes{space=\"total_physical\", instance=~\"$fb\"})) or vector(0)) + (sum(max by (device_name, entity_name) (last_over_time(flashblade_storage_device_bucket_space_bytes{space_type=\"total_physical\", device_name=~\"$fb\"}[10m]))) or vector(0))",
+          "legendFormat": "total"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total Objects (all buckets)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(max by (instance, name) (purefb_buckets_object_count{instance=~\"$fb\"})) or vector(0)) + (sum(max by (device_name, entity_name) (last_over_time(flashblade_storage_device_bucket_obj_count{device_name=~\"$fb\"}[10m]))) or vector(0))",
+          "legendFormat": "total"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Buckets",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(count(count by (instance, name) (purefb_buckets_object_count{instance=~\"$fb\"})) or vector(0)) + (count(sum by (device_name, entity_name) (last_over_time(flashblade_storage_device_bucket_obj_count{device_name=~\"$fb\"}[10m]))) or vector(0))",
+          "legendFormat": "buckets"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Avg Data Reduction",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg(avg by (instance, name) (purefb_buckets_space_data_reduction_ratio{instance=~\"$fb\"}) or avg by (device_name, entity_name) (last_over_time(flashblade_storage_device_bucket_space_reduction{device_name=~\"$fb\"}[10m])))",
+          "legendFormat": "drr"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "bargauge",
+      "title": "Top 15 Buckets by Size",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(15, sum by (fb, bucket) (label_replace(label_replace(max by (instance, name) (purefb_buckets_space_bytes{space=\"total_physical\", instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\")) or sum by (fb, bucket) (label_replace(label_replace(max by (device_name, entity_name) (last_over_time(flashblade_storage_device_bucket_space_bytes{space_type=\"total_physical\", device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\")))",
+          "legendFormat": "{{bucket}}  @ {{fb}}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "continuous-BlPu"
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "bargauge",
+      "title": "Top 15 Buckets by Object Count",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(15, sum by (fb, bucket) (label_replace(label_replace(max by (instance, name) (purefb_buckets_object_count{instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\")) or sum by (fb, bucket) (label_replace(label_replace(max by (device_name, entity_name) (last_over_time(flashblade_storage_device_bucket_obj_count{device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\")))",
+          "legendFormat": "{{bucket}}  @ {{fb}}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "continuous-GrYlRd"
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "Array-level S3 performance (OpenMetrics path only)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "collapsed": false
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Array S3 Throughput (IOPS)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, dimension) (purefb_array_s3_performance_throughput_iops{instance=~\"$fb\"})",
+          "legendFormat": "{{instance}} / {{dimension}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Array S3 Latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by (instance, dimension) (purefb_array_s3_performance_latency_usec{instance=~\"$fb\"})",
+          "legendFormat": "{{instance}} / {{dimension}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Per-bucket performance (filtered by $bucket)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "collapsed": false
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Bucket IOPS",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (name, dimension) (purefb_buckets_s3_specific_performance_throughput_iops{instance=~\"$fb\", name=~\"$bucket\"})",
+          "legendFormat": "OM \u00b7 {{name}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (entity_name, op) (flashblade_storage_device_bucket_iops{device_name=~\"$fb\", entity_name=~\"$bucket\"})",
+          "legendFormat": "OTel \u00b7 {{entity_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Bucket Latency",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by (name, dimension) (purefb_buckets_s3_specific_performance_latency_usec{instance=~\"$fb\", name=~\"$bucket\"})",
+          "legendFormat": "OM \u00b7 {{name}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "avg by (entity_name, op) (flashblade_storage_device_bucket_latency_us{device_name=~\"$fb\", entity_name=~\"$bucket\"})",
+          "legendFormat": "OTel \u00b7 {{entity_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Bucket Bandwidth",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 34
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (name, dimension) (purefb_buckets_performance_bandwidth_bytes{instance=~\"$fb\", name=~\"$bucket\"})",
+          "legendFormat": "OM \u00b7 {{name}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (entity_name, op) (flashblade_storage_device_bucket_bw_bps{device_name=~\"$fb\", entity_name=~\"$bucket\"})",
+          "legendFormat": "OTel \u00b7 {{entity_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Per-account totals",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 34
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (account) (max by (instance, account, name) (purefb_buckets_object_count{instance=~\"$fb\"})) or sum by (account) (label_replace(max by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_obj_count{device_name=~\"$fb\"}[10m])), \"account\", \"$1\", \"entity_owner\", \"(.+)\"))",
+          "legendFormat": "Objects",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (account) (max by (instance, account, name) (purefb_buckets_space_bytes{space=\"total_physical\", instance=~\"$fb\"})) or sum by (account) (label_replace(max by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_space_bytes{space_type=\"total_physical\", device_name=~\"$fb\"}[10m])), \"account\", \"$1\", \"entity_owner\", \"(.+)\"))",
+          "legendFormat": "Size",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "account": "Account",
+              "Value #A": "Objects",
+              "Value #B": "Size (bytes)"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "Size (bytes)",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size (bytes)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Objects"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Space breakdown",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
+      "collapsed": false
+    },
+    {
+      "id": 16,
+      "type": "timeseries",
+      "title": "Bucket space breakdown \u2014 OpenMetrics path",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 43
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (space) (purefb_buckets_space_bytes{instance=~\"$fb\", name=~\"$bucket\", space=~\"total_physical|snapshots|unique|shared|destroyed|virtual\"})",
+          "legendFormat": "{{space}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 18,
+      "type": "row",
+      "title": "All buckets \u2014 full list (sortable, CSV export via panel Inspect \u2192 Data \u2192 Download CSV)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
+      "collapsed": false
+    },
+    {
+      "id": 19,
+      "type": "table",
+      "title": "All buckets",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 52
+      },
+      "targets": [
+        {
+          "refId": "Size",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (instance, account, name) (purefb_buckets_space_bytes{space=\"total_physical\", instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\"), \"account\", \"$1\", \"account\", \"(.+)\")) or sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_space_bytes{space_type=\"total_physical\", device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\"), \"account\", \"$1\", \"entity_owner\", \"(.+)\"))"
+        },
+        {
+          "refId": "Objects",
+          "format": "table",
+          "instant": true,
+          "expr": "sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (instance, account, name) (purefb_buckets_object_count{instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\"), \"account\", \"$1\", \"account\", \"(.+)\")) or sum by (fb, bucket, account) (label_replace(label_replace(label_replace(max by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_obj_count{device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\"), \"account\", \"$1\", \"entity_owner\", \"(.+)\"))"
+        },
+        {
+          "refId": "DRR",
+          "format": "table",
+          "instant": true,
+          "expr": "avg by (fb, bucket, account) (label_replace(label_replace(label_replace(avg by (instance, account, name) (purefb_buckets_space_data_reduction_ratio{instance=~\"$fb\"}), \"fb\", \"$1\", \"instance\", \"(.+)\"), \"bucket\", \"$1\", \"name\", \"(.+)\"), \"account\", \"$1\", \"account\", \"(.+)\")) or avg by (fb, bucket, account) (label_replace(label_replace(label_replace(avg by (device_name, entity_name, entity_owner) (last_over_time(flashblade_storage_device_bucket_space_reduction{device_name=~\"$fb\"}[10m])), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"bucket\", \"$1\", \"entity_name\", \"(.+)\"), \"account\", \"$1\", \"entity_owner\", \"(.+)\"))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "indexByName": {
+              "fb": 0,
+              "account": 1,
+              "bucket": 2,
+              "Value #Size": 3,
+              "Value #Objects": 4,
+              "Value #DRR": 5
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "account": "Account",
+              "bucket": "Bucket",
+              "Value #Size": "Size (bytes)",
+              "Value #Objects": "Objects",
+              "Value #DRR": "DRR"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "Size (bytes)",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": true,
+          "reducer": [
+            "sum"
+          ],
+          "fields": [
+            "Size (bytes)",
+            "Objects"
+          ]
+        },
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size (bytes)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-BlPu"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Objects"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "DRR"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "type": "timeseries",
+      "title": "Bucket space breakdown \u2014 OTel path",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (space_type) (flashblade_storage_device_bucket_space_bytes{device_name=~\"$fb\", entity_name=~\"$bucket\", space_type=~\"total_physical|snapshots|unique|shared|destroyed|virtual\"})",
+          "legendFormat": "{{space_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  # ---------------------------------------------------------------------------
+  # Prometheus self-monitoring
+  # ---------------------------------------------------------------------------
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ---------------------------------------------------------------------------
+  # Grafana health
+  # ---------------------------------------------------------------------------
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  # ---------------------------------------------------------------------------
+  # Pure FlashArrays (via pure-fa-openmetrics-exporter)
+  #
+  # Each FlashArray is listed as a target. The exporter proxies the API call.
+  # Update the targets list with your FlashArray management IPs/hostnames.
+  # API tokens are configured in pure-fa-exporter/pure-fa-exporter.yml
+  # ---------------------------------------------------------------------------
+  - job_name: "flasharray"
+    scrape_interval: 30s
+    scrape_timeout: 25s
+    metrics_path: /metrics
+    scheme: http
+    relabel_configs:
+      # Pass the original target address as the 'endpoint' param to the exporter
+      - source_labels: [__address__]
+        target_label: __param_endpoint
+      # Use the original target as the 'instance' label
+      - source_labels: [__param_endpoint]
+        target_label: instance
+      # Route all scrapes through the exporter container
+      - target_label: __address__
+        replacement: pure-fa-exporter:9490
+    static_configs:
+      - targets:
+          - flasharray1.lab.example.com
+          - flasharray2.lab.example.com
+          # Add more FlashArrays here
+        labels:
+          storage_type: flasharray
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector (FlashBlade metrics via OTLP push)
+  #
+  # The OTel Collector receives OTLP from FlashBlade 4.8+ and exposes
+  # metrics on :8889 for Prometheus to scrape.
+  # ---------------------------------------------------------------------------
+  - job_name: "otel-collector"
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["otel-collector:8889"]
+        labels:
+          storage_type: flashblade
+
+  # ---------------------------------------------------------------------------
+  # Linux clients (Grafana Alloy)
+  #
+  # Alloy on each client exposes Prometheus metrics on :12345/metrics
+  # Update with your actual client hostnames/IPs.
+  # ---------------------------------------------------------------------------
+  - job_name: "linux-clients"
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - client1.lab.example.com:12345
+          - client2.lab.example.com:12345
+          # Add more clients here
+        labels:
+          role: client

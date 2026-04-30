@@ -1,0 +1,1116 @@
+{
+  "title": "Pure Storage FlashBlade - Hardware Health (Unified)",
+  "uid": "fb-hardware-health-unified",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "tags": [
+    "pure",
+    "flashblade",
+    "hardware",
+    "health",
+    "unified",
+    "otel"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "fb",
+        "label": "FlashBlade",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "query": {
+          "query": "query_result(label_replace(purefb_info, \"fb\", \"$1\", \"instance\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_health[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "regex": ".*fb=\"([^\"]+)\".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Hardware Health \u2014 Unified\n\nPer-component-type health across all selected FBs. **Healthy** = OM value `1` or OTel value `5`. Anything else counts as unhealthy and colors red. Row below breaks down per component type (chassis, flash blades, bays, fabric modules, Ethernet ports, fans, power supplies)."
+      },
+      "transparent": true
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Total Components",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\"}[10m]))",
+          "legendFormat": "total"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Unhealthy Components",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "0",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Open Alerts",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "count(purefb_alerts_open{instance=~\"$fb\"}) or count(last_over_time(flashblade_storage_device_alerts{device_name=~\"$fb\"}[10m]))",
+          "legendFormat": "alerts"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Firmware Versions",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(label_replace(purefb_info{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"ver\", \"$1\", \"version\", \"(.+)\") or label_replace(label_replace(last_over_time(flashblade_storage_device_info{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"ver\", \"$1\", \"device_vers\", \"(.+)\")"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "Value": true,
+              "instance": true,
+              "device_name": true,
+              "device_id": true,
+              "job": true,
+              "namespace": true,
+              "storage_type": true,
+              "source": true,
+              "env": true,
+              "array_name": true,
+              "os": true,
+              "version": true,
+              "system_id": true,
+              "subscription_type": true,
+              "collector_name": true,
+              "otel_scope_name": true,
+              "otel_scope_version": true,
+              "fleet_id": true,
+              "fleet_name": true,
+              "realm_id": true,
+              "realm_name": true,
+              "resource_type": true,
+              "device_os": true,
+              "device_type": true,
+              "device_vers": true,
+              "created": true,
+              "entity_id": true,
+              "entity_name": true,
+              "entity_owner": true,
+              "entity_owner_id": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "ver": "Firmware"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Component type breakdown",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Chassis",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "Total",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\", type=\"ch\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"ch\"}[10m]))",
+          "legendFormat": "total"
+        },
+        {
+          "refId": "Bad",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\", type=\"ch\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"ch\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Flash Blades",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "Total",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\", type=\"fb\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"fb\"}[10m]))",
+          "legendFormat": "total"
+        },
+        {
+          "refId": "Bad",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\", type=\"fb\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"fb\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Bays (SSDs)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "Total",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\", type=\"bay\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"bay\"}[10m]))",
+          "legendFormat": "total"
+        },
+        {
+          "refId": "Bad",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\", type=\"bay\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"bay\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "Fabric Modules",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "Total",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\", type=\"fm\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"fm\"}[10m]))",
+          "legendFormat": "total"
+        },
+        {
+          "refId": "Bad",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\", type=\"fm\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"fm\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 25,
+      "type": "stat",
+      "title": "Ethernet Ports",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 15
+      },
+      "targets": [
+        {
+          "refId": "Total",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\", type=\"eth\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"eth\"}[10m]))",
+          "legendFormat": "total"
+        },
+        {
+          "refId": "Bad",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\", type=\"eth\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"eth\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 26,
+      "type": "stat",
+      "title": "Fans",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 15
+      },
+      "targets": [
+        {
+          "refId": "Total",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\", type=\"fan\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"fan\"}[10m]))",
+          "legendFormat": "total"
+        },
+        {
+          "refId": "Bad",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\", type=\"fan\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"fan\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 27,
+      "type": "stat",
+      "title": "Power Supplies",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 15
+      },
+      "targets": [
+        {
+          "refId": "Total",
+          "instant": true,
+          "expr": "count(purefb_hardware_health{instance=~\"$fb\", type=\"pwr\"}) or count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"pwr\"}[10m]))",
+          "legendFormat": "total"
+        },
+        {
+          "refId": "Bad",
+          "instant": true,
+          "expr": "(count(purefb_hardware_health{instance=~\"$fb\", type=\"pwr\"} != 1) or vector(0)) + (count(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\", component_type=\"pwr\"}[10m]) != 5) or vector(0))",
+          "legendFormat": "unhealthy"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "horizontal",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unhealthy"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Unhealthy component detail",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "collapsed": false
+    },
+    {
+      "id": 31,
+      "type": "table",
+      "title": "Unhealthy components \u2014 OpenMetrics",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(purefb_hardware_health{instance=~\"$fb\"} != 1, \"fb\", \"$1\", \"instance\", \"(.+)\")"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "namespace": true,
+              "storage_type": true,
+              "source": true,
+              "env": true,
+              "instance": true,
+              "index": true,
+              "slot": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "name": "Component",
+              "type": "Type",
+              "Value": "Health"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        }
+      }
+    },
+    {
+      "id": 32,
+      "type": "table",
+      "title": "Unhealthy components \u2014 OTel",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\"}[10m]) != 5, \"fb\", \"$1\", \"device_name\", \"(.+)\")"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "namespace": true,
+              "storage_type": true,
+              "source": true,
+              "env": true,
+              "instance": true,
+              "device_name": true,
+              "device_id": true,
+              "collector_name": true,
+              "otel_scope_name": true,
+              "otel_scope_version": true,
+              "fleet_id": true,
+              "fleet_name": true,
+              "realm_id": true,
+              "realm_name": true,
+              "resource_type": true,
+              "device_os": true,
+              "device_type": true,
+              "device_vers": true,
+              "created": true,
+              "entity_id": true,
+              "entity_owner_id": true,
+              "exported_storage_type": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "component_name": "Component",
+              "component_type": "Type",
+              "Value": "Health"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        }
+      }
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Alerts",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "collapsed": false
+    },
+    {
+      "id": 41,
+      "type": "table",
+      "title": "Open System Alerts",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 33
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(purefb_alerts_open{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")"
+        },
+        {
+          "refId": "B",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(last_over_time(flashblade_storage_device_alerts{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "namespace": true,
+              "storage_type": true,
+              "source": true,
+              "env": true,
+              "instance": true,
+              "device_name": true,
+              "device_id": true,
+              "collector_name": true,
+              "otel_scope_name": true,
+              "otel_scope_version": true,
+              "fleet_id": true,
+              "fleet_name": true,
+              "realm_id": true,
+              "realm_name": true,
+              "resource_type": true,
+              "device_os": true,
+              "device_type": true,
+              "device_vers": true,
+              "created": true,
+              "entity_id": true,
+              "entity_owner": true,
+              "entity_owner_id": true,
+              "exported_storage_type": true,
+              "Value": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "severity": "Severity",
+              "summary": "Summary",
+              "component_name": "Component",
+              "component_type": "Type",
+              "action": "Action",
+              "kburl": "KB"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "critical": {
+                        "color": "red"
+                      },
+                      "warning": {
+                        "color": "yellow"
+                      },
+                      "info": {
+                        "color": "blue"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    }
+  ]
+}

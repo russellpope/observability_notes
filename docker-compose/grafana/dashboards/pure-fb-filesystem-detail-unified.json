@@ -1,0 +1,590 @@
+{
+  "title": "Pure Storage FlashBlade - Filesystem Detail (Unified)",
+  "uid": "fb-filesystem-detail-unified",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "tags": [
+    "pure",
+    "flashblade",
+    "filesystem",
+    "unified",
+    "otel"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "fb",
+        "label": "FlashBlade",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": {
+          "query": "query_result(label_replace(purefb_info, \"fb\", \"$1\", \"instance\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_health[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "regex": ".*fb=\"([^\"]+)\".*"
+      },
+      {
+        "name": "filesystem",
+        "label": "File System",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": {
+          "query": "query_result(label_replace(purefb_file_systems_space_bytes{instance=~\"$fb\"}, \"fs\", \"$1\", \"name\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\"}[10m]), \"fs\", \"$1\", \"entity_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "regex": ".*fs=\"([^\"]+)\".*"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## Filesystem Detail \u2014 Unified\n\nPer-filesystem drill-down across both telemetry paths. Select a FlashBlade and a File System above. **User and Group usage** panels at the bottom are **OpenMetrics-only** \u2014 Pure's native OTel exporter does not yet expose `flashblade_storage_device_fs_usage_users_bytes` / `_groups_bytes`. See `docs/GAPS.md`."
+      },
+      "transparent": true
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "FlashBlade",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "count by (fb) (label_replace(purefb_info{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or count by (fb) (label_replace(last_over_time(flashblade_storage_device_info{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "name",
+        "colorMode": "none",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Avg FS IOPS (read + write)",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(avg_over_time(purefb_file_systems_performance_throughput_iops{instance=~\"$fb\", name=~\"$filesystem\"}[$__range])) or sum(avg_over_time(flashblade_storage_device_fs_iops{device_name=~\"$fb\", entity_name=~\"$filesystem\", op=~\"read|write\"}[$__range]))",
+          "legendFormat": "iops"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Avg FS Latency",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "avg(avg_over_time(purefb_file_systems_performance_latency_usec{instance=~\"$fb\", name=~\"$filesystem\"}[$__range])) or avg(avg_over_time(flashblade_storage_device_fs_latency_us{device_name=~\"$fb\", entity_name=~\"$filesystem\", op=~\"read|write\"}[$__range]))",
+          "legendFormat": "latency"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          }
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Avg FS Throughput",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(avg_over_time(purefb_file_systems_performance_bandwidth_bytes{instance=~\"$fb\", name=~\"$filesystem\"}[$__range])) or sum(avg_over_time(flashblade_storage_device_fs_bw_bps{device_name=~\"$fb\", entity_name=~\"$filesystem\", op=~\"read|write\"}[$__range]))",
+          "legendFormat": "bw"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "FS Physical Used",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(purefb_file_systems_space_bytes{instance=~\"$fb\", name=~\"$filesystem\", space=\"total_physical\"}) or sum(last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\", entity_name=~\"$filesystem\", space_type=\"total_physical\"}[10m]))",
+          "legendFormat": "physical"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          }
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "FS Virtual",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(purefb_file_systems_space_bytes{instance=~\"$fb\", name=~\"$filesystem\", space=\"virtual\"}) or sum(last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\", entity_name=~\"$filesystem\", space_type=\"virtual\"}[10m]))",
+          "legendFormat": "virtual"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "Data Reduction",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "avg(purefb_file_systems_space_data_reduction_ratio{instance=~\"$fb\", name=~\"$filesystem\"}) or avg(last_over_time(flashblade_storage_device_fs_space_reduction{device_name=~\"$fb\", entity_name=~\"$filesystem\"}[10m]))",
+          "legendFormat": "drr"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Snapshots",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "sum(purefb_file_systems_space_bytes{instance=~\"$fb\", name=~\"$filesystem\", space=\"snapshots\"}) or sum(last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\", entity_name=~\"$filesystem\", space_type=\"snapshots\"}[10m]))",
+          "legendFormat": "snap"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 2
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Capacity Usage Distribution \u2014 OpenMetrics",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (space) (purefb_file_systems_space_bytes{instance=~\"$fb\", name=~\"$filesystem\", space=~\"total_physical|virtual|snapshots|unique\"})",
+          "legendFormat": "{{space}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Capacity Usage Distribution \u2014 OTel",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (space_type) (last_over_time(flashblade_storage_device_fs_space_bytes{device_name=~\"$fb\", entity_name=~\"$filesystem\", space_type=~\"total_physical|virtual|snapshots|unique\"}[10m]))",
+          "legendFormat": "{{space_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Filesystem performance time series",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
+      },
+      "collapsed": false
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "File System IOPS",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, name, dimension) (purefb_file_systems_performance_throughput_iops{instance=~\"$fb\", name=~\"$filesystem\"})",
+          "legendFormat": "OM \u00b7 {{name}} @ {{instance}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, entity_name, op) (flashblade_storage_device_fs_iops{device_name=~\"$fb\", entity_name=~\"$filesystem\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{entity_name}} @ {{device_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops"
+        }
+      }
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "File System Latency",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by (instance, name, dimension) (purefb_file_systems_performance_latency_usec{instance=~\"$fb\", name=~\"$filesystem\"})",
+          "legendFormat": "OM \u00b7 {{name}} @ {{instance}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "avg by (device_name, entity_name, op) (flashblade_storage_device_fs_latency_us{device_name=~\"$fb\", entity_name=~\"$filesystem\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{entity_name}} @ {{device_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        }
+      }
+    },
+    {
+      "id": 43,
+      "type": "timeseries",
+      "title": "File System Throughput",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, name, dimension) (purefb_file_systems_performance_bandwidth_bytes{instance=~\"$fb\", name=~\"$filesystem\"})",
+          "legendFormat": "OM \u00b7 {{name}} @ {{instance}} / {{dimension}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, entity_name, op) (flashblade_storage_device_fs_bw_bps{device_name=~\"$fb\", entity_name=~\"$filesystem\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{entity_name}} @ {{device_name}} / {{op}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "id": 50,
+      "type": "row",
+      "title": "User / Group usage \u2014 OpenMetrics only (see docs/GAPS.md)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "collapsed": false
+    },
+    {
+      "id": 51,
+      "type": "timeseries",
+      "title": "File System Usage per User (OM-only)",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(20, sum by (user, name) (purefb_file_system_usage_users_bytes{instance=~\"$fb\", name=~\"$filesystem\"}))",
+          "legendFormat": "{{user}} @ {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    },
+    {
+      "id": 52,
+      "type": "timeseries",
+      "title": "File System Usage per Group (OM-only)",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(20, sum by (group, name) (purefb_file_system_usage_groups_bytes{instance=~\"$fb\", name=~\"$filesystem\"}))",
+          "legendFormat": "{{group}} @ {{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      }
+    }
+  ]
+}

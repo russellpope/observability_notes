@@ -1,0 +1,15 @@
+# Pure FlashArray OpenMetrics Exporter configuration
+#
+# Map each FlashArray management endpoint to its API token.
+# Generate API tokens via the FlashArray GUI or CLI:
+#   pureadmin create --api-token --user pureuser
+#
+# See: https://github.com/PureStorage-OpenConnect/pure-fa-openmetrics-exporter
+
+# Array API tokens
+flasharray_tokens:
+  - address: flasharray1.lab.example.com
+    api_token: "00000000-0000-0000-0000-000000000000"
+  - address: flasharray2.lab.example.com
+    api_token: "00000000-0000-0000-0000-000000000000"
+  # Add more arrays as needed

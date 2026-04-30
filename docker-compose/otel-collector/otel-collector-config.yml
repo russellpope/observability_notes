@@ -1,0 +1,60 @@
+# OpenTelemetry Collector configuration
+#
+# Receives OTLP metrics pushed from FlashBlade 4.8+ and exposes them
+# as a Prometheus endpoint for Prometheus to scrape.
+
+receivers:
+  # OTLP receiver — FlashBlades push metrics here
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batch metrics to reduce export overhead
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+
+  # Add resource attributes for identification
+  resource:
+    attributes:
+      - key: collector.name
+        value: "lab-otel-collector"
+        action: upsert
+
+exporters:
+  # Expose metrics as a Prometheus scrape endpoint
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: flashblade
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Debug exporter for troubleshooting (writes to collector logs)
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch, resource]
+      exporters: [prometheus, debug]
+
+  telemetry:
+    logs:
+      level: info
+    # Expose the collector's own self-metrics on :8888 so Prometheus can
+    # scrape `otelcol_receiver_*`, `otelcol_exporter_*`, `otelcol_processor_*`
+    # for the Stack Health dashboard.
+    metrics:
+      level: detailed
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888

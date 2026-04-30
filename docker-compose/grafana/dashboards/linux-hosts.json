@@ -1,0 +1,172 @@
+{
+  "title": "Linux Hosts (Alloy)",
+  "uid": "linux-hosts",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "tags": ["linux", "hosts", "alloy"],
+  "templating": {
+    "list": [
+      {
+        "name": "host",
+        "label": "Host",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(node_uname_info, instance)",
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {"text": "All", "value": "$__all"}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": {"h": 3, "w": 24, "x": 0, "y": 0},
+      "options": {"mode": "markdown", "content": "## Linux Hosts (Alloy)\n\nHost-level metrics from Grafana Alloy clients pushing to Prometheus via remote_write. CPU/memory/disk/network breakdowns per host. Filter with the `Host` selector above."},
+      "transparent": true
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Per-host summary",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 3},
+      "targets": [
+        {"refId": "UNAME", "format": "table", "instant": true, "expr": "node_uname_info{instance=~\"$host\"}"},
+        {"refId": "UPTIME", "format": "table", "instant": true, "expr": "(time() - node_boot_time_seconds{instance=~\"$host\"})"},
+        {"refId": "LOAD", "format": "table", "instant": true, "expr": "node_load1{instance=~\"$host\"}"},
+        {"refId": "CPU", "format": "table", "instant": true, "expr": "100 - (avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\", instance=~\"$host\"}[5m])) * 100)"},
+        {"refId": "MEMPCT", "format": "table", "instant": true, "expr": "100 * (1 - node_memory_MemAvailable_bytes{instance=~\"$host\"} / node_memory_MemTotal_bytes{instance=~\"$host\"})"},
+        {"refId": "ROOTPCT", "format": "table", "instant": true, "expr": "100 * (1 - node_filesystem_avail_bytes{mountpoint=\"/\", instance=~\"$host\"} / node_filesystem_size_bytes{mountpoint=\"/\", instance=~\"$host\"})"}
+      ],
+      "transformations": [
+        {"id": "merge", "options": {}},
+        {"id": "organize", "options": {
+          "excludeByName": {"Time": true, "__name__": true, "job": true, "domainname": true, "machine": true, "nodename": true, "release": true, "sysname": true, "Value #UNAME": true, "fstype": true, "device": true, "mountpoint": true, "hostname": true, "env": true},
+          "indexByName": {"instance": 0, "Value #UPTIME": 1, "Value #LOAD": 2, "Value #CPU": 3, "Value #MEMPCT": 4, "Value #ROOTPCT": 5},
+          "renameByName": {"instance": "Host", "Value #UPTIME": "Uptime", "Value #LOAD": "Load (1m)", "Value #CPU": "CPU %", "Value #MEMPCT": "Mem %", "Value #ROOTPCT": "Root /  %"}
+        }}
+      ],
+      "options": {"showHeader": true, "cellHeight": "sm"},
+      "fieldConfig": {
+        "defaults": {"custom": {"align": "auto", "filterable": true}},
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Uptime"}, "properties": [{"id": "unit", "value": "s"}]},
+          {"matcher": {"id": "byName", "options": "CPU %"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "decimals", "value": 1}, {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}}, {"id": "max", "value": 100}, {"id": "min", "value": 0}]},
+          {"matcher": {"id": "byName", "options": "Mem %"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "decimals", "value": 1}, {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}}, {"id": "max", "value": 100}, {"id": "min", "value": 0}]},
+          {"matcher": {"id": "byName", "options": "Root /  %"}, "properties": [{"id": "unit", "value": "percent"}, {"id": "decimals", "value": 1}, {"id": "custom.cellOptions", "value": {"type": "color-background", "mode": "gradient"}}, {"id": "max", "value": 100}, {"id": "min", "value": 0}]},
+          {"matcher": {"id": "byName", "options": "Load (1m)"}, "properties": [{"id": "decimals", "value": 2}]}
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Performance",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 10},
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "CPU usage by mode",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 11},
+      "targets": [{"refId": "A", "expr": "sum by (instance, mode) (rate(node_cpu_seconds_total{instance=~\"$host\", mode!=\"idle\"}[5m])) * 100 / count by (instance) (count by (instance, cpu) (node_cpu_seconds_total{instance=~\"$host\"}))", "legendFormat": "{{instance}} / {{mode}}"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0}}
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Memory breakdown",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 11},
+      "targets": [
+        {"refId": "A", "expr": "node_memory_MemTotal_bytes{instance=~\"$host\"} - node_memory_MemAvailable_bytes{instance=~\"$host\"}", "legendFormat": "{{instance}} used"},
+        {"refId": "B", "expr": "node_memory_Cached_bytes{instance=~\"$host\"}", "legendFormat": "{{instance}} cached"},
+        {"refId": "C", "expr": "node_memory_Buffers_bytes{instance=~\"$host\"}", "legendFormat": "{{instance}} buffers"},
+        {"refId": "D", "expr": "node_memory_MemFree_bytes{instance=~\"$host\"}", "legendFormat": "{{instance}} free"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "bytes"}}
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "Load average",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 19},
+      "targets": [
+        {"refId": "A", "expr": "node_load1{instance=~\"$host\"}", "legendFormat": "{{instance}} 1m"},
+        {"refId": "B", "expr": "node_load5{instance=~\"$host\"}", "legendFormat": "{{instance}} 5m"},
+        {"refId": "C", "expr": "node_load15{instance=~\"$host\"}", "legendFormat": "{{instance}} 15m"}
+      ],
+      "fieldConfig": {"defaults": {"decimals": 2}}
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Network throughput by interface",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 19},
+      "targets": [
+        {"refId": "A", "expr": "sum by (instance, device) (rate(node_network_receive_bytes_total{instance=~\"$host\", device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "{{instance}}/{{device}} rx"},
+        {"refId": "B", "expr": "-sum by (instance, device) (rate(node_network_transmit_bytes_total{instance=~\"$host\", device!~\"lo|docker.*|veth.*\"}[5m]))", "legendFormat": "{{instance}}/{{device}} tx"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "Bps"}}
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Storage",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 27},
+      "collapsed": false
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "Filesystem use % per mountpoint",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+      "targets": [{"refId": "A", "expr": "100 * (1 - node_filesystem_avail_bytes{instance=~\"$host\", fstype!~\"tmpfs|overlay|squashfs|devtmpfs\"} / node_filesystem_size_bytes{instance=~\"$host\", fstype!~\"tmpfs|overlay|squashfs|devtmpfs\"})", "legendFormat": "{{instance}} {{mountpoint}}"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Disk I/O bandwidth",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+      "targets": [
+        {"refId": "A", "expr": "sum by (instance, device) (rate(node_disk_read_bytes_total{instance=~\"$host\", device!~\"loop.*|dm-.*\"}[5m]))", "legendFormat": "{{instance}}/{{device}} read"},
+        {"refId": "B", "expr": "-sum by (instance, device) (rate(node_disk_written_bytes_total{instance=~\"$host\", device!~\"loop.*|dm-.*\"}[5m]))", "legendFormat": "{{instance}}/{{device}} write"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "Bps"}}
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Disk IOPS",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36},
+      "targets": [
+        {"refId": "A", "expr": "sum by (instance, device) (rate(node_disk_reads_completed_total{instance=~\"$host\", device!~\"loop.*|dm-.*\"}[5m]))", "legendFormat": "{{instance}}/{{device}} read"},
+        {"refId": "B", "expr": "-sum by (instance, device) (rate(node_disk_writes_completed_total{instance=~\"$host\", device!~\"loop.*|dm-.*\"}[5m]))", "legendFormat": "{{instance}}/{{device}} write"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "iops"}}
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Inode use %",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36},
+      "targets": [{"refId": "A", "expr": "100 * (1 - node_filesystem_files_free{instance=~\"$host\", fstype!~\"tmpfs|overlay|squashfs|devtmpfs\"} / node_filesystem_files{instance=~\"$host\", fstype!~\"tmpfs|overlay|squashfs|devtmpfs\"})", "legendFormat": "{{instance}} {{mountpoint}}"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}}
+    }
+  ]
+}

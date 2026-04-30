@@ -1,0 +1,124 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Prometheus — central metrics store
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts:/etc/prometheus/alerts:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}"
+      - "--web.enable-lifecycle"
+      - "--web.enable-remote-write-receiver"
+    networks:
+      - observability
+
+  # ---------------------------------------------------------------------------
+  # Grafana — visualization and dashboards
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - observability
+
+  # ---------------------------------------------------------------------------
+  # Loki — log aggregation
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - observability
+
+  # ---------------------------------------------------------------------------
+  # Alertmanager — alert routing
+  # ---------------------------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    networks:
+      - observability
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector — receives OTLP push from FlashBlade 4.8+
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    restart: unless-stopped
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8889:8889"   # Prometheus exporter (FlashBlade metrics)
+      - "8888:8888"   # collector's own self-metrics
+    volumes:
+      - ./otel-collector/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    networks:
+      - observability
+
+  # Note: Modern FlashArray Purity (6.4+) exposes OpenMetrics natively at
+  # https://<array>/metrics/<namespace>. Prometheus scrapes arrays directly
+  # using bearer-token auth — no separate exporter container needed.
+
+  # ---------------------------------------------------------------------------
+  # Pure FlashBlade OpenMetrics Exporter
+  # Stateless proxy: Prometheus passes FB endpoint via `params.endpoint` and
+  # API token via `authorization.credentials` on each scrape. Used as a
+  # fallback for FlashBlades where native OTel export isn't available or
+  # wanted.
+  # ---------------------------------------------------------------------------
+  pure-fb-exporter:
+    image: quay.io/purestorage/pure-fb-om-exporter:latest
+    container_name: pure-fb-exporter
+    restart: unless-stopped
+    networks:
+      - observability
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alertmanager-data:
+
+networks:
+  observability:
+    driver: bridge

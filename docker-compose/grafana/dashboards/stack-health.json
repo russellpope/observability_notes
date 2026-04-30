@@ -1,0 +1,239 @@
+{
+  "title": "Observability Stack Health",
+  "uid": "stack-health",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "tags": ["stack", "self-monitoring"],
+  "templating": {"list": []},
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": {"h": 3, "w": 24, "x": 0, "y": 0},
+      "options": {"mode": "markdown", "content": "## Observability Stack Health\n\nSelf-monitoring of the stack itself: Prometheus, Grafana, Loki, Alertmanager, OTel collector. Most useful when investigating stack performance, scrape backpressure, query slowness, or alert pipeline issues — not the stuff your customer dashboards care about."},
+      "transparent": true
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Scrape targets up",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 3},
+      "targets": [
+        {"refId": "A", "instant": true, "expr": "sum(up == 1)", "legendFormat": "up"},
+        {"refId": "B", "instant": true, "expr": "sum(up == 0)", "legendFormat": "down"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "orientation": "horizontal", "textMode": "value_and_name"},
+      "fieldConfig": {
+        "defaults": {"unit": "short", "decimals": 0},
+        "overrides": [{"matcher": {"id": "byName", "options": "down"}, "properties": [{"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}]}]
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "TSDB head series",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 3},
+      "targets": [{"refId": "A", "instant": true, "expr": "prometheus_tsdb_head_series", "legendFormat": "series"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0, "color": {"mode": "fixed", "fixedColor": "blue"}}}
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Samples/s ingested",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 3},
+      "targets": [{"refId": "A", "expr": "rate(prometheus_tsdb_head_samples_appended_total[5m])", "legendFormat": "samples/s"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "fieldConfig": {"defaults": {"unit": "ops", "decimals": 0, "color": {"mode": "fixed", "fixedColor": "green"}}}
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Firing alerts",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 3},
+      "targets": [{"refId": "A", "instant": true, "expr": "sum(ALERTS{alertstate=\"firing\"}) or vector(0)", "legendFormat": "firing"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {
+        "defaults": {"unit": "short", "decimals": 0,
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 5}]}
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Prometheus internals",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 8},
+      "collapsed": false
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Scrape duration p95 by job",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
+      "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, sum by (job, le) (rate(scrape_duration_seconds_bucket[5m]))) or topk(15, max by (job) (scrape_duration_seconds))", "legendFormat": "{{job}}"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 22,
+      "type": "timeseries",
+      "title": "Failed scrapes (5m rate)",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
+      "targets": [{"refId": "A", "expr": "sum by (job) (rate(prometheus_target_scrape_pool_target_limit_total[5m])) + (sum by (job) (up == 0))", "legendFormat": "{{job}}"}],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "id": 23,
+      "type": "timeseries",
+      "title": "TSDB on-disk size",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17},
+      "targets": [{"refId": "A", "expr": "prometheus_tsdb_storage_blocks_bytes + prometheus_tsdb_wal_storage_size_bytes", "legendFormat": "TSDB total"}],
+      "fieldConfig": {"defaults": {"unit": "bytes"}}
+    },
+    {
+      "id": 24,
+      "type": "timeseries",
+      "title": "Query duration p95",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17},
+      "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(prometheus_engine_query_duration_seconds_bucket[5m])))", "legendFormat": "p95 query"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Grafana internals",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 25},
+      "collapsed": false
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "HTTP request rate by status",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 26},
+      "targets": [{"refId": "A", "expr": "sum by (status_code) (rate(grafana_http_request_duration_seconds_count[5m]))", "legendFormat": "{{status_code}}"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "HTTP request duration p95",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 26},
+      "targets": [{"refId": "A", "expr": "histogram_quantile(0.95, sum by (handler, le) (rate(grafana_http_request_duration_seconds_bucket[5m])))", "legendFormat": "{{handler}}"}],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 33,
+      "type": "stat",
+      "title": "Active users",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 34},
+      "targets": [{"refId": "A", "instant": true, "expr": "grafana_stat_active_users", "legendFormat": "active"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}}
+    },
+    {
+      "id": 34,
+      "type": "stat",
+      "title": "Total users",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 34},
+      "targets": [{"refId": "A", "instant": true, "expr": "grafana_stat_total_users", "legendFormat": "total"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}}
+    },
+    {
+      "id": 35,
+      "type": "stat",
+      "title": "Total dashboards",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 34},
+      "targets": [{"refId": "A", "instant": true, "expr": "grafana_stat_totals_dashboard", "legendFormat": "dashboards"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}}
+    },
+    {
+      "id": 36,
+      "type": "stat",
+      "title": "DB connections",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 34},
+      "targets": [{"refId": "A", "instant": true, "expr": "grafana_database_conn_open", "legendFormat": "open"}],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}}
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "OTel collector",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 40},
+      "collapsed": false
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "OTLP receiver — accepted vs refused metric points",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 41},
+      "targets": [
+        {"refId": "A", "expr": "sum(rate(otelcol_receiver_accepted_metric_points_total[5m]))", "legendFormat": "accepted/s"},
+        {"refId": "B", "expr": "sum(rate(otelcol_receiver_refused_metric_points_total[5m])) or vector(0)", "legendFormat": "refused/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "OTLP exporter — sent vs failed",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 41},
+      "targets": [
+        {"refId": "A", "expr": "sum(rate(otelcol_exporter_sent_metric_points_total[5m]))", "legendFormat": "sent/s"},
+        {"refId": "B", "expr": "sum(rate(otelcol_exporter_send_failed_metric_points_total[5m])) or vector(0)", "legendFormat": "failed/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    },
+    {
+      "id": 50,
+      "type": "row",
+      "title": "Loki & Alertmanager",
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 49},
+      "collapsed": false
+    },
+    {
+      "id": 51,
+      "type": "timeseries",
+      "title": "Loki ingestion rate",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 50},
+      "targets": [
+        {"refId": "A", "expr": "sum(rate(loki_distributor_lines_received_total[5m])) or vector(0)", "legendFormat": "lines/s"},
+        {"refId": "B", "expr": "sum(rate(loki_distributor_bytes_received_total[5m])) or vector(0)", "legendFormat": "bytes/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    },
+    {
+      "id": 52,
+      "type": "timeseries",
+      "title": "Alertmanager — notifications",
+      "datasource": "Prometheus",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 50},
+      "targets": [
+        {"refId": "A", "expr": "sum by (integration) (rate(alertmanager_notifications_total[5m])) or vector(0)", "legendFormat": "{{integration}} sent/s"},
+        {"refId": "B", "expr": "sum by (integration) (rate(alertmanager_notifications_failed_total[5m])) or vector(0)", "legendFormat": "{{integration}} failed/s"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    }
+  ]
+}

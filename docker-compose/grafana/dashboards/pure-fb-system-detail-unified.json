@@ -1,0 +1,819 @@
+{
+  "title": "Pure Storage FlashBlade - System Detail (Unified)",
+  "uid": "fb-system-detail-unified",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-3h",
+    "to": "now"
+  },
+  "tags": [
+    "pure",
+    "flashblade",
+    "system",
+    "unified",
+    "otel"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "fb",
+        "label": "FlashBlade",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": {
+          "query": "query_result(label_replace(purefb_info, \"fb\", \"$1\", \"instance\", \"(.+)\") or label_replace(last_over_time(flashblade_storage_device_health[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "includeAll": true,
+        "allValue": ".+",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "regex": ".*fb=\"([^\"]+)\".*"
+      },
+      {
+        "name": "TopItems",
+        "label": "Top N",
+        "type": "custom",
+        "query": "5,10,15,25,50",
+        "current": {
+          "text": "10",
+          "value": "10"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "## System Detail \u2014 Unified\n\nPer-FlashBlade system view (firmware, capacity, performance, top-N filesystems) combining both telemetry paths. Use the FlashBlade selector to focus on one array or all."
+      },
+      "transparent": true
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Array Info",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(label_replace(label_replace(purefb_info{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"os\", \"$1\", \"os\", \"(.+)\"), \"ver\", \"$1\", \"version\", \"(.+)\")"
+        },
+        {
+          "refId": "B",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(label_replace(label_replace(last_over_time(flashblade_storage_device_info{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"os\", \"$1\", \"device_os\", \"(.+)\"), \"ver\", \"$1\", \"device_vers\", \"(.+)\")"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "Value": true,
+              "instance": true,
+              "device_name": true,
+              "device_id": true,
+              "job": true,
+              "namespace": true,
+              "storage_type": true,
+              "source": true,
+              "env": true,
+              "array_name": true,
+              "version": true,
+              "system_id": true,
+              "subscription_type": true,
+              "collector_name": true,
+              "otel_scope_name": true,
+              "otel_scope_version": true,
+              "fleet_id": true,
+              "realm_id": true,
+              "resource_type": true,
+              "device_os": true,
+              "device_type": true,
+              "device_vers": true,
+              "created": true,
+              "entity_id": true,
+              "entity_name": true,
+              "entity_owner": true,
+              "entity_owner_id": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "os": "OS",
+              "ver": "Firmware",
+              "fleet_name": "Fleet",
+              "realm_name": "Realm"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "System Events (open alerts)",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 3
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(purefb_alerts_open{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")"
+        },
+        {
+          "refId": "B",
+          "format": "table",
+          "instant": true,
+          "expr": "label_replace(last_over_time(flashblade_storage_device_alerts{device_name=~\"$fb\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "Value": true,
+              "job": true,
+              "namespace": true,
+              "storage_type": true,
+              "source": true,
+              "env": true,
+              "instance": true,
+              "device_name": true,
+              "device_id": true,
+              "collector_name": true,
+              "otel_scope_name": true,
+              "otel_scope_version": true,
+              "fleet_id": true,
+              "fleet_name": true,
+              "realm_id": true,
+              "realm_name": true,
+              "resource_type": true,
+              "device_os": true,
+              "device_type": true,
+              "device_vers": true,
+              "created": true,
+              "entity_id": true,
+              "entity_owner": true,
+              "entity_owner_id": true,
+              "exported_storage_type": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "severity": "Severity",
+              "summary": "Summary",
+              "component_name": "Component",
+              "action": "Action"
+            }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        }
+      }
+    },
+    {
+      "id": 20,
+      "type": "gauge",
+      "title": "Capacity Used %",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "100 * (sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"total_physical\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"total_physical\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))) / (sum by (fb) (label_replace(purefb_array_space_bytes{instance=~\"$fb\", space=\"capacity\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or sum by (fb) (label_replace(last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=\"capacity\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\")))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "stat",
+      "title": "Data Reduction Ratio",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "avg by (fb) (label_replace(purefb_array_space_data_reduction_ratio{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\")) or avg by (fb) (label_replace(last_over_time(flashblade_storage_device_space_reduction{device_name=~\"$fb\", exported_storage_type=\"all\"}[10m]), \"fb\", \"$1\", \"device_name\", \"(.+)\"))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "area",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "IO Read %",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "100 * (sum(avg_over_time(purefb_array_performance_throughput_iops{instance=~\"$fb\", protocol=\"all\", dimension=\"read_per_sec\"}[$__range])) or sum(avg_over_time(flashblade_storage_device_iops{device_name=~\"$fb\", proto=\"all\", op=\"read\"}[$__range]))) / ((sum(avg_over_time(purefb_array_performance_throughput_iops{instance=~\"$fb\", protocol=\"all\", dimension=~\"read_per_sec|write_per_sec\"}[$__range])) or sum(avg_over_time(flashblade_storage_device_iops{device_name=~\"$fb\", proto=\"all\", op=~\"read|write\"}[$__range]))))",
+          "legendFormat": "read"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Unhealthy components",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "(count by (fb) (label_replace(purefb_hardware_health{instance=~\"$fb\"} != 1, \"fb\", \"$1\", \"instance\", \"(.+)\")) or vector(0)) + (count by (fb) (label_replace(last_over_time(flashblade_storage_device_health{device_name=~\"$fb\"}[10m]) != 5, \"fb\", \"$1\", \"device_name\", \"(.+)\")) or vector(0))",
+          "legendFormat": "{{fb}}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "orientation": "horizontal"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "All OK",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "Capacity Usage Distribution",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, space) (purefb_array_space_bytes{instance=~\"$fb\", space=~\"unique|snapshots|shared|virtual|total_physical\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{space}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, space_type) (last_over_time(flashblade_storage_device_space_bytes{device_name=~\"$fb\", exported_storage_type=\"all\", space_type=~\"unique|snapshots|shared|virtual|total_physical\"}[10m]))",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{space_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 25
+          }
+        }
+      }
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Array Performance",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "collapsed": false
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "Array IOPS",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, protocol) (purefb_array_performance_throughput_iops{instance=~\"$fb\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{protocol}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, proto) (flashblade_storage_device_iops{device_name=~\"$fb\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{proto}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "iops"
+        }
+      }
+    },
+    {
+      "id": 42,
+      "type": "timeseries",
+      "title": "Array Latency",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg by (instance, protocol) (purefb_array_performance_latency_usec{instance=~\"$fb\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{protocol}}"
+        },
+        {
+          "refId": "B",
+          "expr": "avg by (device_name, proto) (flashblade_storage_device_latency_us{device_name=~\"$fb\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{proto}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "\u00b5s"
+        }
+      }
+    },
+    {
+      "id": 43,
+      "type": "timeseries",
+      "title": "Array Throughput",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (instance, protocol) (purefb_array_performance_bandwidth_bytes{instance=~\"$fb\"})",
+          "legendFormat": "OM \u00b7 {{instance}} / {{protocol}}"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (device_name, proto) (flashblade_storage_device_bw_bps{device_name=~\"$fb\", op=~\"read|write\"})",
+          "legendFormat": "OTel \u00b7 {{device_name}} / {{proto}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        }
+      }
+    },
+    {
+      "id": 50,
+      "type": "row",
+      "title": "Top talker filesystems",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "collapsed": false
+    },
+    {
+      "id": 51,
+      "type": "table",
+      "title": "Top $TopItems Filesystems by IOPS",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 0,
+        "y": 49
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "topk($TopItems, sum by (fb, fs) (label_replace(label_replace(purefb_file_systems_performance_throughput_iops{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"fs\", \"$1\", \"name\", \"(.+)\")) or sum by (fb, fs) (label_replace(label_replace(flashblade_storage_device_fs_iops{device_name=~\"$fb\", op=~\"read|write\"}, \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"fs\", \"$1\", \"entity_name\", \"(.+)\")))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "fs": "Filesystem",
+              "Value": "IOPS"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "IOPS",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "IOPS"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "iops"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 52,
+      "type": "table",
+      "title": "Top $TopItems Filesystems by Latency",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 8,
+        "y": 49
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "topk($TopItems, avg by (fb, fs) (label_replace(label_replace(purefb_file_systems_performance_latency_usec{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"fs\", \"$1\", \"name\", \"(.+)\")) or avg by (fb, fs) (label_replace(label_replace(flashblade_storage_device_fs_latency_us{device_name=~\"$fb\", op=~\"read|write\"}, \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"fs\", \"$1\", \"entity_name\", \"(.+)\")))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "fs": "Filesystem",
+              "Value": "Latency"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "Latency",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "\u00b5s"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "continuous-RdYlGr"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 53,
+      "type": "table",
+      "title": "Top $TopItems Filesystems by Throughput",
+      "datasource": "Prometheus",
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 49
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "instant": true,
+          "expr": "topk($TopItems, sum by (fb, fs) (label_replace(label_replace(purefb_file_systems_performance_bandwidth_bytes{instance=~\"$fb\"}, \"fb\", \"$1\", \"instance\", \"(.+)\"), \"fs\", \"$1\", \"name\", \"(.+)\")) or sum by (fb, fs) (label_replace(label_replace(flashblade_storage_device_fs_bw_bps{device_name=~\"$fb\", op=~\"read|write\"}, \"fb\", \"$1\", \"device_name\", \"(.+)\"), \"fs\", \"$1\", \"entity_name\", \"(.+)\")))"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "fb": "FlashBlade",
+              "fs": "Filesystem",
+              "Value": "Throughput"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [],
+            "sort": [
+              {
+                "field": "Throughput",
+                "desc": true
+              }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Throughput"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

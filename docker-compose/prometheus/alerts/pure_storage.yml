@@ -1,0 +1,67 @@
+groups:
+  - name: pure_storage
+    rules:
+      - alert: FlashArrayHighLatency
+        expr: purefa_array_performance_latency_usec{dimension="write_latency"} > 2000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High write latency on {{ $labels.instance }}"
+          description: "Write latency is {{ $value }}μs (threshold: 2000μs) on FlashArray {{ $labels.instance }}"
+
+      - alert: FlashArrayCapacityCritical
+        expr: purefa_array_space_used_bytes / purefa_array_space_capacity_bytes * 100 > 90
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "FlashArray {{ $labels.instance }} capacity above 90%"
+          description: "Array capacity is {{ $value | humanize }}% used"
+
+      - alert: FlashArrayCapacityWarning
+        expr: purefa_array_space_used_bytes / purefa_array_space_capacity_bytes * 100 > 75
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "FlashArray {{ $labels.instance }} capacity above 75%"
+          description: "Array capacity is {{ $value | humanize }}% used"
+
+  - name: host_alerts
+    rules:
+      - alert: HostHighCpuUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}%"
+
+      - alert: HostHighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanize }}%"
+
+      - alert: HostDiskSpaceLow
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: "Disk usage is {{ $value | humanize }}%"
+
+      - alert: HostDown
+        expr: up == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host {{ $labels.instance }} is down"
+          description: "Target has been unreachable for more than 3 minutes"
