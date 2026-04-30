@@ -1,0 +1,196 @@
+# Prometheus configuration for the Pure Storage observability stack.
+#
+# Drop into docker-compose/prometheus/prometheus.yml; mount read-only into
+# the prometheus container at /etc/prometheus/prometheus.yml.
+#
+# Replace every <...> placeholder with real values. Sections you don't need
+# (FA, OTel, stack self-monitoring) can be deleted — they're labeled.
+#
+# After edits: `docker restart prometheus` (most reliable) or
+# `curl -X POST http://prometheus:9090/-/reload`.
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+# Optional — only useful if Alertmanager is in the same compose network.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Optional — alert rule files mounted into the container.
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+scrape_configs:
+
+  # ===========================================================================
+  # FlashBlades — via pure-fb-om-exporter (OpenMetrics path)
+  # One scrape job per (FB, namespace). Six namespaces per FB:
+  # array, clients, filesystems, objectstore, policies, usage.
+  # Repeat the entire 6-job block for each FB.
+  # ===========================================================================
+
+  # --- FB1 (e.g. flashblade1.example.com) ---
+  - job_name: "flashblade_fb1_array"
+    metrics_path: /metrics/array
+    authorization:
+      credentials: "T-<fb1-uuid>"
+    params:
+      endpoint: ['flashblade1.example.com']
+    static_configs:
+      - targets: ['pure-fb-exporter:9491']
+        labels:
+          instance: "flashblade1.example.com"
+          storage_type: flashblade
+          namespace: "array"
+          source: openmetrics
+          env: "lab"
+
+  - job_name: "flashblade_fb1_clients"
+    metrics_path: /metrics/clients
+    authorization: { credentials: "T-<fb1-uuid>" }
+    params: { endpoint: ['flashblade1.example.com'] }
+    static_configs:
+      - targets: ['pure-fb-exporter:9491']
+        labels: { instance: "flashblade1.example.com", storage_type: flashblade, namespace: "clients", source: openmetrics, env: "lab" }
+
+  - job_name: "flashblade_fb1_filesystems"
+    metrics_path: /metrics/filesystems
+    authorization: { credentials: "T-<fb1-uuid>" }
+    params: { endpoint: ['flashblade1.example.com'] }
+    static_configs:
+      - targets: ['pure-fb-exporter:9491']
+        labels: { instance: "flashblade1.example.com", storage_type: flashblade, namespace: "filesystems", source: openmetrics, env: "lab" }
+
+  - job_name: "flashblade_fb1_objectstore"
+    metrics_path: /metrics/objectstore
+    authorization: { credentials: "T-<fb1-uuid>" }
+    params: { endpoint: ['flashblade1.example.com'] }
+    static_configs:
+      - targets: ['pure-fb-exporter:9491']
+        labels: { instance: "flashblade1.example.com", storage_type: flashblade, namespace: "objectstore", source: openmetrics, env: "lab" }
+
+  - job_name: "flashblade_fb1_policies"
+    metrics_path: /metrics/policies
+    authorization: { credentials: "T-<fb1-uuid>" }
+    params: { endpoint: ['flashblade1.example.com'] }
+    static_configs:
+      - targets: ['pure-fb-exporter:9491']
+        labels: { instance: "flashblade1.example.com", storage_type: flashblade, namespace: "policies", source: openmetrics, env: "lab" }
+
+  - job_name: "flashblade_fb1_usage"
+    metrics_path: /metrics/usage
+    authorization: { credentials: "T-<fb1-uuid>" }
+    params: { endpoint: ['flashblade1.example.com'] }
+    static_configs:
+      - targets: ['pure-fb-exporter:9491']
+        labels: { instance: "flashblade1.example.com", storage_type: flashblade, namespace: "usage", source: openmetrics, env: "lab" }
+
+  # ===========================================================================
+  # FlashArrays — Purity 6.4+ exposes OpenMetrics natively.
+  # No exporter container needed; Prometheus hits the array directly via HTTPS.
+  # Five namespaces per FA: array, volumes, hosts, pods, directories.
+  # Repeat per FA. Token is via Bearer auth.
+  # ===========================================================================
+
+  # --- FA1 (e.g. flasharray1.example.com) ---
+  - job_name: "flasharray_fa1_array"
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true       # FAs ship with self-signed certs by default
+    metrics_path: /metrics/array
+    params:
+      namespace: ['purefa']            # required by Purity's native /metrics handler
+    authorization:
+      credentials: "<fa1-api-token-uuid>"
+    static_configs:
+      - targets: ['flasharray1.example.com']
+        labels:
+          instance: "flasharray1.example.com"
+          storage_type: flasharray
+          namespace: "array"
+          env: "lab"
+
+  - job_name: "flasharray_fa1_volumes"
+    scheme: https
+    tls_config: { insecure_skip_verify: true }
+    metrics_path: /metrics/volumes
+    params: { namespace: ['purefa'] }
+    authorization: { credentials: "<fa1-api-token-uuid>" }
+    static_configs:
+      - targets: ['flasharray1.example.com']
+        labels: { instance: "flasharray1.example.com", storage_type: flasharray, namespace: "volumes", env: "lab" }
+
+  - job_name: "flasharray_fa1_hosts"
+    scheme: https
+    tls_config: { insecure_skip_verify: true }
+    metrics_path: /metrics/hosts
+    params: { namespace: ['purefa'] }
+    authorization: { credentials: "<fa1-api-token-uuid>" }
+    static_configs:
+      - targets: ['flasharray1.example.com']
+        labels: { instance: "flasharray1.example.com", storage_type: flasharray, namespace: "hosts", env: "lab" }
+
+  - job_name: "flasharray_fa1_pods"
+    scheme: https
+    tls_config: { insecure_skip_verify: true }
+    metrics_path: /metrics/pods
+    params: { namespace: ['purefa'] }
+    authorization: { credentials: "<fa1-api-token-uuid>" }
+    static_configs:
+      - targets: ['flasharray1.example.com']
+        labels: { instance: "flasharray1.example.com", storage_type: flasharray, namespace: "pods", env: "lab" }
+
+  - job_name: "flasharray_fa1_directories"
+    scheme: https
+    tls_config: { insecure_skip_verify: true }
+    metrics_path: /metrics/directories
+    params: { namespace: ['purefa'] }
+    authorization: { credentials: "<fa1-api-token-uuid>" }
+    static_configs:
+      - targets: ['flasharray1.example.com']
+        labels: { instance: "flasharray1.example.com", storage_type: flasharray, namespace: "directories", env: "lab" }
+
+  # ===========================================================================
+  # OTel collector (FlashBlade native OTLP push path)
+  # Only needed if you have FBs configured to push OTLP to the collector.
+  # The collector exposes pushed metrics on :8889 in Prometheus format.
+  # ===========================================================================
+  - job_name: "otel-collector"
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["otel-collector:8889"]
+        labels:
+          storage_type: flashblade
+          source: otel
+
+  # ===========================================================================
+  # Stack self-monitoring (optional but recommended).
+  # Powers the "Observability Stack Health" dashboard.
+  # ===========================================================================
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  - job_name: "otel-collector-self"
+    static_configs:
+      - targets: ["otel-collector:8888"]
+        labels: { stack_component: "otel-collector" }
+
+  - job_name: "loki"
+    static_configs:
+      - targets: ["loki:3100"]
+        labels: { stack_component: "loki" }
+
+  - job_name: "alertmanager-self"
+    static_configs:
+      - targets: ["alertmanager:9093"]
+        labels: { stack_component: "alertmanager" }
