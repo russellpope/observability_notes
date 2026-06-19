@@ -1,9 +1,10 @@
 # Exportable Grafana dashboards
 
-Portable versions of the unified / custom FlashBlade dashboards we built in
-this repo. These JSON files are wrapped with a `__inputs` block and use
-`${DS_PROMETHEUS}` placeholders so any Grafana instance can import them and
-bind its own Prometheus datasource at import time.
+Portable versions of the unified / custom FlashBlade and FlashArray
+dashboards we built in this repo. These JSON files are wrapped with a
+`__inputs` block and use `${DS_PROMETHEUS}` placeholders so any Grafana
+instance can import them and bind its own Prometheus datasource at import
+time.
 
 **This directory is for sharing.** For the Ansible-provisioned live stack
 copies (which use a hardcoded `"datasource": "Prometheus"` and are rewritten
@@ -21,12 +22,20 @@ in place by Grafana's file provisioning), see
 | `pure-fb-system-detail-unified.json` | System Detail (Unified) | Per-FB system view (firmware, capacity, performance, top-N filesystems) |
 | `pure-fb-object-storage.json` | Object Storage | Bucket-focused dashboard for chargeback/billing (total size, object count, top-N, full table CSV export) |
 | `pure-fb-otel-overview.json` | OTel Overview | Designed for the OTel-path FB specifically — uses `flashblade_storage_device_*` schema only |
+| `pure-fa-nvme.json` | FlashArray NVMe/TCP | FlashArray front-end NVMe-over-TCP — enabled ports, target portals, RX/TX throughput, packets, errors, plus all-transport connectivity/connection context. Uses `purefa_*` (native Purity OpenMetrics) |
+| `pure-fa-host-client.json` | FlashArray Per-Client (Host) | Per-host IOPS / bandwidth / latency / IO-size / space / DRR / connections / connectivity, with fleet top-N + `$host` drill-down. Includes an explicit note that host stats are all-transport (no per-client NVMe attribution). Uses `purefa_host_*` |
 
-All dashboards query **both** the OpenMetrics path (`purefb_*` via
+The FlashBlade dashboards query **both** the OpenMetrics path (`purefb_*` via
 `pure-fb-om-exporter`) and the native OTel path
 (`flashblade_storage_device_*` via the OpenTelemetry collector). Panels that
 exist on only one path are labeled in their title. See
 [../docs/GAPS.md](../docs/GAPS.md) for the cross-path metric gap tracker.
+
+`pure-fa-nvme.json` is the lone **FlashArray** dashboard here; it queries
+`purefa_*` only. NVMe/TCP is isolated via the `services="nvme-tcp"` interface
+label. Connectivity/connection panels span all transports (Purity exposes no
+NVMe-specific session metric); R1 throughput/error panels populate only on
+arrays with NVMe/TCP enabled.
 
 ## Importing into a different Grafana
 
